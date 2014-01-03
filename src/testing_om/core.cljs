@@ -1,6 +1,15 @@
 (ns testing-om.core
   (:require [om.core :as om :include-macros true]
-            [om.dom :as dom :include-macros true]))
+            [om.dom :as dom :include-macros true]
+            [cljs.core.async :as async :refer [<! put! chan]]
+            [goog.net.XhrIo :as xhr])
+  (:require-macros
+   [cljs.core.async.macros :refer [go]])
+  (:import [goog.net Jsonp]
+           [goog Uri]))
+
+(defn log [s]
+  (.log js/console (str s)))
 
 (def app-state (atom {:comments
                       [{:author "John Doe" :text "* Some text"}]}))
@@ -23,17 +32,30 @@
 (defn trim-field [f]
   (.. f -value trim))
 
+(defn jsonp [uri data]
+  (let [out (chan)
+        req (Jsonp. (Uri. uri))]
+    (.send req data (fn [res] (put! out res)))
+    out))
+
+(defn POST [uri data]
+  (let [out (chan)]
+    (xhr/send uri (fn [res] (put! out res))
+              "POST"
+              (JSON/stringify
+               (clj->js data))
+              #js {"Content-Type" "application/json"})
+    out))
+
 (defn handle-form-submit [e app owner]
-  (.log js/console "event" e "app" app "owner" owner)
   (let [author-field (om/get-node owner "author")
         text-field (om/get-node owner "text")
         author (trim-field author-field)
         text (trim-field text-field)
-        _ (.log js/console "author" author)
-        _ (.log js/console "text" text)]
-    (om/transact! app :comments conj
-                  {:author author
-                   :text text})
+        comment {:author author :text text}]
+    (om/transact! app :comments conj comment)
+    (go
+     (<! (POST "/comments.json" comment)))
     (set! (.-value author-field) "")
     (set! (.-value text-field) ""))
   false)
