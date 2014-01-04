@@ -14,9 +14,18 @@ app.get('/comments.json', function(req, res) {
 });
 
 app.post('/comments.json', function(req, res) {
-  comments.push(req.body);
-  res.setHeader('Content-Type', 'application/json');
-  res.send(JSON.stringify(comments));
+  var comment = req.body;
+  if (!comment.author) {
+    res.send(400, { error: 'Author must not be empty!' });
+  }
+  else if (!comment.text) {
+    res.send(400, { error: 'Comment text must not be empty!' });
+  }
+  else {
+    comments.push(req.body);
+    res.setHeader('Content-Type', 'application/json');
+    res.send(JSON.stringify(comments));
+  }
 });
 
 app.listen(3000);

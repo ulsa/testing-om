@@ -2,7 +2,7 @@
   (:require [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
             [cljs.core.async :as async :refer [<! put! chan]]
-            [goog.net.XhrIo :as xhr])
+            [ajax.core :refer [GET POST]])
   (:require-macros
    [cljs.core.async.macros :refer [go]])
   (:import [goog.net Jsonp]
@@ -32,20 +32,18 @@
 (defn trim-field [f]
   (.. f -value trim))
 
-(defn jsonp [uri data]
-  (let [out (chan)
-        req (Jsonp. (Uri. uri))]
-    (.send req data (fn [res] (put! out res)))
-    out))
-
-(defn POST [uri data]
-  (let [out (chan)]
-    (xhr/send uri (fn [res] (put! out res))
-              "POST"
-              (JSON/stringify
-               (clj->js data))
-              #js {"Content-Type" "application/json"})
-    out))
+(defn post-json [uri data]
+  (let [success (chan)
+        error (chan)]
+    (POST uri
+               {:handler (fn [response] (put! success response))
+                :error-handler (fn [response] (put! error response))
+                :params data
+                :format :json
+                :response-format :json
+                :keywords? true
+                :timeout 10})
+    {:success success :error error}))
 
 (defn handle-form-submit [e app owner]
   (let [author-field (om/get-node owner "author")
@@ -54,10 +52,15 @@
         text (trim-field text-field)
         comment {:author author :text text}]
     (om/transact! app :comments conj comment)
-    (go
-     (<! (POST "/comments.json" comment)))
+    (let [{:keys [success error] :as chs} (post-json "/comments.json" comment)]
+      (go (let [[result ch] (alts! (vals chs))] 
+            (if (= ch success)
+              (om/transact! app :comments (fn [_] result))
+              (do 
+                (om/transact! app :comments pop)    
+                (js/alert (str "Failed to post comment: " (get-in result [:response :error])))))))
     (set! (.-value author-field) "")
-    (set! (.-value text-field) ""))
+    (set! (.-value text-field) "")))
   false)
 
 (defn comment-form [app owner]
@@ -76,8 +79,8 @@
   (om/component
    (dom/div #js {:className "commentBox"}
             (dom/h1 nil "Comments")
-            (om/build comment-list app {:path []})
-            (om/build comment-form app {:path []}))))
+            (om/build comment-list app)
+            (om/build comment-form app))))
 
 (om/root app-state comment-box (.getElementById js/document "content"))
 
