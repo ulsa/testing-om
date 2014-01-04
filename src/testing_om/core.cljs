@@ -65,7 +65,7 @@
   (let [out (chan)]
     (go (while true
           (<! (timeout 5000))
-          (let [{:keys [success error] :as chs} (get-json "/comments.json")
+          (let [{:keys [success error] :as chs} (get-json "/comments")
                 [result ch] (alts! (vals chs))]
             (if (= ch success)
               (put! out result)
@@ -84,7 +84,7 @@
         text (trim-field text-field)
         comment {:author author :text text}]
     (om/transact! app :comments conj comment)
-    (let [{:keys [success error] :as chs} (post-json "/comments.json" comment)]
+    (let [{:keys [success error] :as chs} (post-json "/comments" comment)]
       (go (let [[result ch] (alts! (vals chs))] 
             (if (= ch success)
               (do 

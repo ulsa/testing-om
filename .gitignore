@@ -1,5 +1,3 @@
-out
-app.js
-node_modules/
 .lein-repl-history
 target
+resources/public/js

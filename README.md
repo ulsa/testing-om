@@ -3,8 +3,7 @@
 Clone, build and install [Om](https://github.com/swannodette/om).
 
 ```
-npm install express
-node server.js
+lein ring server-headless
 ```
 
-And visit http://localhost:3000/
+And visit http://localhost:3000/index.html
