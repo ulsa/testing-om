@@ -3,7 +3,7 @@ var fs = require('fs');
 var express = require('express');
 var app = express();
 
-var comments = [{author: 'Pete Hunt', text: 'Hey there!'}];
+var comments = [];
 
 app.use('/', express.static(__dirname));
 app.use(express.bodyParser());

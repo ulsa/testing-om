@@ -4,30 +4,33 @@
             [cljs.core.async :as async :refer [<! put! chan]]
             [ajax.core :refer [GET POST]])
   (:require-macros
-   [cljs.core.async.macros :refer [go]])
-  (:import [goog.net Jsonp]
-           [goog Uri]))
+   [cljs.core.async.macros :refer [go]]))
 
 (defn log [s]
   (.log js/console (str s)))
 
-(def app-state (atom {:comments
-                      [{:author "John Doe" :text "* Some text"}]}))
+(def app-state (atom {:comments []}))
 
 (def converter (js/Showdown.converter.))
+
+(defn markdown-span [text]
+  (let [html (.makeHtml converter text)]
+    (dom/span #js {:dangerouslySetInnerHTML #js {:__html html}})))
 
 (defn comment [{:keys [author text]}]
   (om/component
    (dom/div #js {:className "comment"}
             (dom/h2 #js {:className "commentAuthor"}
                     author)
-            (let [raw-markup (.makeHtml converter text)]
-              (dom/span #js {:dangerouslySetInnerHTML #js {:__html raw-markup}})))))
+            (markdown-span text))))
 
 (defn comment-list [app]
   (let [comments (om/build-all comment (:comments app))]
     (om/component
-     (dom/div #js {:className "commentList"} comments))))
+     (dom/div #js {:className "commentList"} 
+              (if (empty? comments) 
+                (markdown-span "*No comments yet.*")
+                comments)))))
 
 (defn trim-field [f]
   (.. f -value trim))
@@ -55,12 +58,15 @@
     (let [{:keys [success error] :as chs} (post-json "/comments.json" comment)]
       (go (let [[result ch] (alts! (vals chs))] 
             (if (= ch success)
-              (om/transact! app :comments (fn [_] result))
+              (do 
+                (om/transact! app :comments (fn [_] result))
+                (set! (.-value author-field) "")
+                (set! (.-value text-field) ""))  
               (do 
                 (om/transact! app :comments pop)    
-                (js/alert (str "Failed to post comment: " (get-in result [:response :error])))))))
-    (set! (.-value author-field) "")
-    (set! (.-value text-field) "")))
+                (set! (.-value author-field) author)
+                (set! (.-value text-field) text)   
+                (log (get-in result [:response :error]))))))))
   false)
 
 (defn comment-form [app owner]
