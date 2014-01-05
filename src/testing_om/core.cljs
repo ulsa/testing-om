@@ -4,10 +4,8 @@
             [cljs.core.async :as async :refer [<! put! chan alts! timeout]]
             [ajax.core :refer [GET POST]])
   (:require-macros
-   [cljs.core.async.macros :refer [go]]))
-
-(defn log [s]
-  (.log js/console (str s)))
+   [cljs.core.async.macros :refer [go]]
+   [testing-om.core :refer [log]]))
 
 (def app-state (atom {:comments []}))
 
@@ -27,8 +25,8 @@
 (defn comment-list [app]
   (let [comments (om/build-all comment (:comments app))]
     (om/component
-     (dom/div #js {:className "commentList"} 
-              (if (empty? comments) 
+     (dom/div #js {:className "commentList"}
+              (if (empty? comments)
                 (markdown-span "*No comments yet.*")
                 comments)))))
 
@@ -69,12 +67,12 @@
                 [result ch] (alts! (vals chs))]
             (if (= ch success)
               (put! out result)
-              (log (str "Comment updates polling failed: " (get-in result [:response :error])))))))
+              (log "Comment updates polling failed: %s" (pr-str (get-in result [:response :error])))))))
     out))
 
 (defn update-comments [app]
   (go (while true
-        (let [updated (<! comment-updates)] 
+        (let [updated (<! comment-updates)]
           (om/transact! app :comments (constantly updated))))))
 
 (defn handle-form-submit [e app owner]
@@ -85,17 +83,17 @@
         comment {:author author :text text}]
     (om/transact! app :comments conj comment)
     (let [{:keys [success error] :as chs} (post-json "/comments" comment)]
-      (go (let [[result ch] (alts! (vals chs))] 
+      (go (let [[result ch] (alts! (vals chs))]
             (if (= ch success)
-              (do 
+              (do
                 (om/transact! app :comments (fn [_] result))
                 (set! (.-value author-field) "")
-                (set! (.-value text-field) ""))  
-              (do 
-                (om/transact! app :comments pop)    
+                (set! (.-value text-field) ""))
+              (do
+                (om/transact! app :comments pop)
                 (set! (.-value author-field) author)
-                (set! (.-value text-field) text)   
-                (log (get-in result [:response :error]))))))))
+                (set! (.-value text-field) text)
+                (log "Comment updates polling failed: %s" (pr-str (get-in result [:response :error])))))))))
   false)
 
 (defn comment-form [app owner]
