@@ -97,13 +97,15 @@
     (tap comment-posts-mult unvalidated) 
     (go 
       (loop []
-        (let [{:keys [comment form] :as msg} (<! unvalidated)
+        (let [{:keys [comment form]} (<! unvalidated)
               {:keys [success error] :as chs} (post-json "/comments" comment)
               [result ch] (alts! (vals chs))] 
           ;; Post to channel depending on success/failure.
           (if (= ch success)
             (put! comment-updates result)
-            (put! invalid-comment-posts msg)))
+            (put! invalid-comment-posts {:comment comment 
+                                         :form form 
+                                         :error (get-in result [:response :error])})))
         (recur)))))
 
 (defn add-comments-optimistically [app]
@@ -130,6 +132,15 @@
           (set! (.-value text-field) (:text comment)))
         (recur)))))
 
+(defn alert-invalid-comments []
+  (let [invalid (chan) ]
+    (tap invalid-comment-posts-mult invalid)
+    (go 
+      (loop []
+        (let [{error :error} (<! invalid)]
+          (js/alert error))
+        (recur)))))
+
 (defn comment-form [app owner]
   (om/component
    (dom/form #js {:onSubmit #(handle-form-submit % app owner)}
@@ -149,7 +160,8 @@
       (update-comments app)
       (post-comments-to-server) 
       (add-comments-optimistically app)
-      (remove-invalid-comments app owner))
+      (remove-invalid-comments app owner)
+      (alert-invalid-comments))
     om/IRender
     (render [_]
       (dom/div #js {:className "commentBox"}
