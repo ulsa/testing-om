@@ -3,6 +3,7 @@
             [compojure.handler :as handler]
             [compojure.route :as route]
             [ring.middleware.json :as middleware]
+            [ring.util.response :as response]
             [cheshire.core :as json]))
 
 (defn json-response [data & [status]]
@@ -25,6 +26,7 @@
     (json-response {:error "Author and text must not be blank!"} 400)))
 
 (defroutes app-routes
+  (GET "/" [] (response/redirect "/index.html"))
   (GET "/comments" [] (all-comments))
   (POST "/comments" {body :body} (add-comment body))
   (route/resources "/")
