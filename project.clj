@@ -10,7 +10,7 @@
                  [cheshire "5.3.0"]
                  [org.clojure/clojurescript "0.0-2138"]
                  [org.clojure/core.async "0.1.267.0-0d7780-alpha"]
-                 [om "0.1.3"]
+                 [om "0.1.4"]
                  [cljs-ajax "0.2.3"]]
 
   :plugins [[lein-ring "0.8.8"]
