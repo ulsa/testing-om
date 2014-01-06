@@ -61,19 +61,21 @@
 
 (def comment-updates
   (let [out (chan)]
-    (go (while true
+    (go (loop []
           (let [{:keys [success error] :as chs} (get-json "/comments")
                 [result ch] (alts! (vals chs))]
             (if (= ch success)
               (put! out result)
               (log (str "Comment updates polling failed: " (get-in result [:response :error])))))
-          (<! (timeout 5000))))
+          (<! (timeout 5000))
+          (recur)))
     out))
 
 (defn update-comments [app]
-  (go (while true
+  (go (loop []
         (let [updated (<! comment-updates)]
-          (om/transact! app :comments (constantly updated))))))
+          (om/transact! app :comments (constantly updated)))
+        (recur))))
 
 (def comment-posts (chan))
 (def comment-posts-mult (mult comment-posts))
@@ -112,9 +114,10 @@
   (let [unvalidated (chan)]
     (tap comment-posts-mult unvalidated) 
     (go
-      (while true
+      (loop []
         (let [comment (<! unvalidated)]
-          (om/transact! app :comments conj comment))))))
+          (om/transact! app :comments conj comment))
+        (recur)))))
 
 (defn except-element [el]
   (fn [coll] (into [] (filter #(not (= el %)) coll))))
