@@ -7,6 +7,13 @@ body {
     -moz-box-sizing: border-box;
 }
 
+a {
+    color: #900;
+}
+a:active, a:hover {
+    color: #c00;
+}
+
 .comment-box {
     max-width: 400px;
 }
@@ -29,7 +36,6 @@ body {
 }
 
 .comment p {
-    font-size: 75%;
     margin: 0;
 }
 
@@ -39,4 +45,9 @@ body {
 }
 .comment-box input[type=submit] {
     width: 20%;
+}
+
+.footer {
+    margin-top: 3em;
+    color: #666;
 }
