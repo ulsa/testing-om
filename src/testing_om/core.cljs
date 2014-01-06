@@ -4,7 +4,7 @@
             [cljs.core.async :as async :refer [<! put! chan alts! timeout mult tap]]
             [ajax.core :refer [GET POST]])
   (:require-macros
-   [cljs.core.async.macros :refer [go]]
+   [cljs.core.async.macros :refer [go go-loop]]
    [testing-om.core :refer [log]]))
 
 (def app-state (atom {:comments []}))
@@ -61,21 +61,21 @@
 
 (def comment-updates
   (let [out (chan)]
-    (go (loop []
-          (let [{:keys [success error] :as chs} (get-json "/comments")
-                [result ch] (alts! (vals chs))]
-            (if (= ch success)
-              (put! out result)
-              (log (str "Comment updates polling failed: " (get-in result [:response :error])))))
-          (<! (timeout 5000))
-          (recur)))
+    (go-loop []
+             (let [{:keys [success error] :as chs} (get-json "/comments")
+                   [result ch] (alts! (vals chs))]
+               (if (= ch success)
+                 (put! out result)
+                 (log (str "Comment updates polling failed: " (get-in result [:response :error])))))
+             (<! (timeout 5000))
+             (recur))
     out))
 
 (defn update-comments [app]
-  (go (loop []
-        (let [updated (<! comment-updates)]
-          (om/transact! app :comments (constantly updated)))
-        (recur))))
+  (go-loop []
+           (let [updated (<! comment-updates)]
+             (om/transact! app :comments (constantly updated)))
+           (recur)))
 
 (def comment-posts (chan))
 (def comment-posts-mult (mult comment-posts))
@@ -90,34 +90,32 @@
         text (trim-field text-field)
         comment {:author author :text text}]
     (set! (.-value author-field) "")
-    (set! (.-value text-field) "") 
+    (set! (.-value text-field) "")
     (put! comment-posts {:comment comment :form owner})
   false))
 
 (defn post-comments-to-server []
   (let [unvalidated (chan)]
-    (tap comment-posts-mult unvalidated) 
-    (go 
-      (loop []
-        (let [{:keys [comment form]} (<! unvalidated)
-              {:keys [success error] :as chs} (post-json "/comments" comment)
-              [result ch] (alts! (vals chs))] 
-          ;; Post to channel depending on success/failure.
-          (if (= ch success)
-            (put! comment-updates result)
-            (put! invalid-comment-posts {:comment comment 
-                                         :form form 
-                                         :error (get-in result [:response :error])})))
-        (recur)))))
+    (tap comment-posts-mult unvalidated)
+    (go-loop []
+             (let [{:keys [comment form]} (<! unvalidated)
+                   {:keys [success error] :as chs} (post-json "/comments" comment)
+                   [result ch] (alts! (vals chs))]
+               ;; Post to channel depending on success/failure.
+               (if (= ch success)
+                 (put! comment-updates result)
+                 (put! invalid-comment-posts {:comment comment
+                                              :form form
+                                              :error (get-in result [:response :error])})))
+             (recur))))
 
 (defn add-comments-optimistically [app]
   (let [unvalidated (chan)]
-    (tap comment-posts-mult unvalidated) 
-    (go
-      (loop []
-        (let [comment (<! unvalidated)]
-          (om/transact! app :comments conj comment))
-        (recur)))))
+    (tap comment-posts-mult unvalidated)
+    (go-loop []
+             (let [comment (<! unvalidated)]
+               (om/transact! app :comments conj comment))
+             (recur))))
 
 (defn except-element [el]
   (fn [coll] (into [] (filter #(not (= el %)) coll))))
@@ -125,24 +123,22 @@
 (defn remove-invalid-comments [app owner]
   (let [invalid (chan) ]
     (tap invalid-comment-posts-mult invalid)
-    (go 
-      (loop []
-        (let [{:keys [comment form]} (<! invalid)
-              author-field (om/get-node form "author")
-              text-field (om/get-node form "text")]
-          (om/transact! app :comments (except-element comment))    
-          (set! (.-value author-field) (:author comment))
-          (set! (.-value text-field) (:text comment)))
-        (recur)))))
+    (go-loop []
+             (let [{:keys [comment form]} (<! invalid)
+                   author-field (om/get-node form "author")
+                   text-field (om/get-node form "text")]
+               (om/transact! app :comments (except-element comment))
+               (set! (.-value author-field) (:author comment))
+               (set! (.-value text-field) (:text comment)))
+             (recur))))
 
 (defn alert-invalid-comments []
   (let [invalid (chan) ]
     (tap invalid-comment-posts-mult invalid)
-    (go 
-      (loop []
-        (let [{error :error} (<! invalid)]
-          (js/alert error))
-        (recur)))))
+    (go-loop []
+             (let [{error :error} (<! invalid)]
+               (js/alert error))
+             (recur))))
 
 (defn comment-form [app owner]
   (om/component
@@ -161,7 +157,7 @@
     om/IWillMount
     (will-mount [_]
       (update-comments app)
-      (post-comments-to-server) 
+      (post-comments-to-server)
       (add-comments-optimistically app)
       (remove-invalid-comments app owner)
       (alert-invalid-comments))
