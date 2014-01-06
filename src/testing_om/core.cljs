@@ -18,14 +18,14 @@
 (defn comment [{:keys [author text]}]
   (om/component
    (dom/div #js {:className "comment"}
-            (dom/h2 #js {:className "commentAuthor"}
+            (dom/h2 #js {:className "comment-author"}
                     author)
             (markdown-span text))))
 
 (defn comment-list [app]
   (let [comments (om/build-all comment (:comments app))]
     (om/component
-     (dom/div #js {:className "commentList"}
+     (dom/div #js {:className "comment-list"}
               (if (empty? comments)
                 (markdown-span "*No comments yet.*")
                 comments)))))
@@ -163,7 +163,7 @@
       (alert-invalid-comments))
     om/IRender
     (render [_]
-      (dom/div #js {:className "commentBox"}
+      (dom/div #js {:className "comment-box"}
                (dom/h1 nil "Comments")
                (om/build comment-list app)
                (om/build comment-form app)))))

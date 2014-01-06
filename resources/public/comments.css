@@ -1,0 +1,42 @@
+body {
+    font-family: sans-serif;
+}
+
+* {
+    box-sizing: border-box:
+    -moz-box-sizing: border-box;
+}
+
+.comment-box {
+    max-width: 400px;
+}
+
+.comment-box h1 {
+    margin: .3em 0;
+    font-weight: 400;
+}
+
+.comment,
+.comment-box form {
+    margin-bottom: 10px;
+    padding: 1em;
+    background: #f7f7f7;
+}
+
+.comment-author {
+    margin: 0 0 .2em;
+    font-size: 100%;
+}
+
+.comment p {
+    font-size: 75%;
+    margin: 0;
+}
+
+.comment-box input[type=text] {
+    width: 38%;
+    margin-right: 2%;
+}
+.comment-box input[type=submit] {
+    width: 20%;
+}
